@@ -18,7 +18,7 @@ always@(posedge clk or posedge rst) begin
 end
 
 always@(*)begin
-    
+    // test.
 end
 
 endmodule
