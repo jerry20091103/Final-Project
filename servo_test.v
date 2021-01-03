@@ -1,9 +1,13 @@
+// 02 124 ~ 82
+// 01 124 ~ 78
+
 module servo_test(
     input clk,
     input rst, 
-    input btn_up,
-    input btn_down,
+    input enable,
+    input sw0,
     output PWM_0,
+    output PWM_1,
     output [6:0] DISPLAY,
     output [3:0] DIGIT
 );
@@ -13,70 +17,51 @@ module servo_test(
         .clk(clk),
         .clk_div(clk_17)
     );
-    // debounce and one pulse
-    wire btn_up_deb, btn_up_op;
-    wire btn_down_deb, btn_down_op;
-    debounce btn_up_deb_m(
-        .pb(btn_up),
-        .pb_debounced(btn_up_deb),
-        .clk(clk_17)
-    );
-    debounce btn_down_deb_m(
-        .pb(btn_down),
-        .pb_debounced(btn_down_deb),
-        .clk(clk_17)
-    );
-    onepulse btn_up_op_m(
-        .signal(btn_up_deb),
-        .clk(clk),
-        .op(btn_up_op)
-    );
-    onepulse btn_down_op_m(
-        .signal(btn_down_deb),
-        .clk(clk),
-        .op(btn_down_op)
-    );
 
     // regs
-    reg [9:0] duty;
-    reg [9:0] duty_next;
+    reg [9:0] duty_0;
+    reg [9:0] duty_1;
 
     // generate pwm signal
     PWM_gen(
         .clk(clk),
         .reset(rst),
         .freq(32'd50),
-        .duty(duty),
+        .duty(duty_0),
         .PWM(PWM_0)
     );
 
-    // control servo with pushbuttons in 10 steps
-    always @(posedge clk, posedge rst)
+    // generate pwm signal
+    PWM_gen(
+        .clk(clk),
+        .reset(rst),
+        .freq(32'd50),
+        .duty(duty_1),
+        .PWM(PWM_1)
+    );
+
+    // change duty according to switch input
+    always @(*) 
     begin
-        if(rst)
-            duty = 26;
-        else
-            duty = duty_next; 
-    end
-    always @*
-    begin
-        if(btn_up_op)
+        if(enable)
         begin
-            if(duty < 126)
-                duty_next = duty + 10;
-            else
-                duty_next = 126;
-        end
-        else if(btn_down_op)
-        begin
-            if(duty > 26)
-                duty_next = duty - 10;
-            else
-                duty_next = 26;
-        end
+            if(sw0)
+            begin
+                duty_0 = 79;
+                duty_1 = 126;
+            end
+            else 
+            begin
+                duty_0 = 126;
+                duty_1 = 82;
+            end
+        end 
         else
-            duty_next = duty;
-    end
+        begin
+            duty_0 = 126;
+            duty_1 = 126;
+        end   
+    end    
 
     // show duty value on display
     wire [6:0] d0;
@@ -101,10 +86,10 @@ module servo_test(
 
     always @(*) 
     begin
-        digit_0 = duty % 10;
-        digit_1 = duty % 100 / 10;
-        digit_2 = duty % 1000 / 100;
-        digit_3 = duty / 1000;
+        digit_0 = duty_0 % 10;
+        digit_1 = duty_0 % 100 / 10;
+        digit_2 = duty_0 % 1000 / 100;
+        digit_3 = duty_0 / 1000;
     end
 
      // convert to 7 bit
