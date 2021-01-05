@@ -97,7 +97,30 @@ module hardware_demo(
             servo_sel = 0;
             servo_amount = 0;
         end   
-    end    
+    end
+
+    // debounce and reverse ir sensors
+    wire ir_sensor_deb [3:0];
+    debounce ir_0_deb(
+        .pb(~ir_sensor[0]),
+        .pb_debounced(ir_sensor_deb[0]),
+        .clk(clk_17)
+    );
+    debounce ir_1_deb(
+        .pb(~ir_sensor[1]),
+        .pb_debounced(ir_sensor_deb[1]),
+        .clk(clk_17)
+    );
+    debounce ir_2_deb(
+        .pb(~ir_sensor[2]),
+        .pb_debounced(ir_sensor_deb[2]),
+        .clk(clk_17)
+    );
+    debounce ir_3_deb(
+        .pb(~ir_sensor[3]),
+        .pb_debounced(ir_sensor_deb[3]),
+        .clk(clk_17)
+    );
 
     // assign relay output
     assign relay = relay_enable;
@@ -105,11 +128,11 @@ module hardware_demo(
     // show status of "the switch"
     assign led[15] = sw0;
 
-    // show IR status on leds (0 = blocked)
-    assign led[0] = ~ir_sensor[0];
-    assign led[1] = ~ir_sensor[1];
-    assign led[2] = ~ir_sensor[2];
-    assign led[3] = ~ir_sensor[3];
+    // show IR status on leds
+    assign led[0] = ir_sensor_deb[0];
+    assign led[1] = ir_sensor_deb[1];
+    assign led[2] = ir_sensor_deb[2];
+    assign led[3] = ir_sensor_deb[3];
 
     // show distance on display
     wire [6:0] d0;
