@@ -20,6 +20,7 @@ module hardware_demo(
     output [1:0] motor_ccw,
     output PWM_0,           // 2 servo to flip the switch
     output PWM_1,
+    input ble_rx,           // bluetooth chip
     // displays
     output [15:0] led,     // show ir sensor status (0~3)
     output [6:0] DISPLAY,  // digit 0, 1 -> sonic_0 distance (cm)
@@ -37,6 +38,8 @@ module hardware_demo(
     wire [19:0] distance_1;
     reg servo_sel;
     reg [4:0] servo_amount;
+    wire ble_err;
+    wire [4:0] command;
 
     // connect sonic sensors
     sonic_top sonic_0(
@@ -73,6 +76,19 @@ module hardware_demo(
         .r_dir(motor_r_dir),
         .motor_cw(motor_cw),
         .motor_ccw(motor_ccw)
+    );
+
+    // connect bluetooth module
+    bluetooth_control ble_ctrl_m(
+        .clk(clk),
+        .rst(rst),
+        .ble_rx(ble_rx),
+        .ble_err(ble_err),
+        .switch(command[0]),
+        .forward(command[1]),
+        .backward(command[2]),
+        .left(command[3]),
+        .right(command[4])
     );
 
     // flip switches
@@ -124,6 +140,14 @@ module hardware_demo(
 
     // assign relay output
     assign relay = relay_enable;
+
+    // show bluetooth control status
+    assign led[14] = ble_err;
+    assign led[13] = command[4];
+    assign led[12] = command[3];
+    assign led[11] = command[2];
+    assign led[10] = command[1];
+    assign led[9] = command[0];
 
     // show status of "the switch"
     assign led[15] = sw0;
