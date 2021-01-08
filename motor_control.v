@@ -1,6 +1,6 @@
 // A module to spin wheels
 // enable 0 = stop, 1 = run
-// dir 1 = cw, 0 = ccw
+// dir 1 = cw (back) , 0 = ccw (forward)
 module motor_control(
     input l_enable,
     input l_dir,

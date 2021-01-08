@@ -6,7 +6,7 @@ module bluetooth_control(
     input ble_rx,        // connect to output of the hc-05 bluetooth chip
     output ble_err,      // indicate transmission error for debug purpose
     // user commands, 1 = on, 0 = off
-    // can mix and match, ex forward = 1 and backward = 1 at the same time
+    // they all work independently, ex forward = 1 and backward = 1 at the same time
     output reg forward,  // move car forward
     output reg backward, //          backward
     output reg left,     //          left

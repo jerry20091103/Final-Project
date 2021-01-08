@@ -1,3 +1,7 @@
+// sonic_top is the module to use sonic sensors
+// clk = 100Mhz
+// <Trig> and <Echo> should connect to the sensor
+// <distance> is the output distance in cm
 module sonic_top(clk, rst, Echo, Trig, distance);
 	input clk, rst, Echo;
 	output Trig;

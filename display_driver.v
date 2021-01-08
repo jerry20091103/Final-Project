@@ -51,6 +51,7 @@ module led_display(
 
 endmodule
 
+// convert int 1~9 to 7-bit code
 module int_to_7_bit(
     input [3:0] digit_in,
     output reg [6:0] digit_out

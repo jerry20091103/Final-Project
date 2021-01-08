@@ -1,12 +1,14 @@
 // A module to control fliping arms
 // clk = 100Mhz
+// only allowed to control one arm at a time to prevent danger
+// if both arms are up at the same time, they may crash into each other
 module servo_control(
     input clk,
     input rst, 
     input enable,       // enalbe = 0 -> both arms hide
     input select,       // select which servo to control, 0 or 1
     input [4:0] amount, // 0~31, 0 = hide, 31 = hit the switch
-    output PWM_0,       // output to servo pwm ports
+    output PWM_0,       // outputs to servo pwm ports
     output PWM_1
 );
     // regs

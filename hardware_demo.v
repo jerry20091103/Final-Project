@@ -1,4 +1,38 @@
 // A demo file to test hardware function
+
+/* ALL THE REQUIRED FILES:
+    sample_code/sonic.v
+    bluetooth_control.v
+    display_driver.v
+    debounce onepulse.v
+    motor_control.v
+    servo_control.v
+    pwm_gen.v
+    uart8/BaudRateGenerator.v
+    uart8/Uart8Receiver.v
+*/
+
+module clock_divider_17(
+    clk,
+    clk_div
+    );
+    parameter n = 17;
+    input clk;
+    output clk_div;
+
+    reg [n-1:0] num;
+    wire [n-1:0] next_num;
+
+    always @(posedge clk)
+    begin
+        num = next_num;
+    end
+
+    assign next_num = num + 1;
+    assign clk_div = num[n-1];
+
+endmodule
+
 module hardware_demo(
     input clk,
     // pushbutton
@@ -11,6 +45,7 @@ module hardware_demo(
     input motor_r_dir,    // sw4
     input relay_enable,    // sw5
     // external devices 
+    // do NOT modify theses if you want to use hardware_demo.xdc
     input sw0,              // the switch
     input [3:0] ir_sensor,  // 4 IR sensors
     input [1:0] sonic_echo, // 2 sonic distance sensors
@@ -42,6 +77,7 @@ module hardware_demo(
     wire [4:0] command;
 
     // connect sonic sensors
+    // see sample_code/sonic.v for more details 
     sonic_top sonic_0(
         .clk(clk),
         .rst(rst),
@@ -58,6 +94,7 @@ module hardware_demo(
     );
 
     // connect servos
+    // see servo_control.v for more info
     servo_control servo_ctrl_0(
         .clk(clk),
         .rst(rst),
@@ -69,6 +106,7 @@ module hardware_demo(
     );
 
     // connect motors
+    // see motor_control.v for more info
     motor_control motor_ctrl_0(
         .l_enable(motor_l_enable),
         .r_enable(motor_r_enable),
@@ -79,6 +117,7 @@ module hardware_demo(
     );
 
     // connect bluetooth module
+    // see bluetooth_contol.v for more info
     bluetooth_control ble_ctrl_m(
         .clk(clk),
         .rst(rst),
@@ -116,6 +155,7 @@ module hardware_demo(
     end
 
     // debounce and reverse ir sensors
+    // ir_sensor = 1 when no object infront, = 0 when detected object
     wire ir_sensor_deb [3:0];
     debounce ir_0_deb(
         .pb(~ir_sensor[0]),
@@ -139,6 +179,8 @@ module hardware_demo(
     );
 
     // assign relay output
+    // relay = 1 is ON, 0 is OFF
+    // relay is connected to a device you want to control with the switch
     assign relay = relay_enable;
 
     // show bluetooth control status
@@ -150,6 +192,9 @@ module hardware_demo(
     assign led[9] = command[0];
 
     // show status of "the switch"
+    // 1 and 0 means two possible positions for the switch
+    // sw0 = 1 -> servo[0] can flip sw
+    // sw0 = 0 -> servo[1] can flip sw
     assign led[15] = sw0;
 
     // show IR status on leds
@@ -158,7 +203,7 @@ module hardware_demo(
     assign led[2] = ir_sensor_deb[2];
     assign led[3] = ir_sensor_deb[3];
 
-    // show distance on display
+    // show distance on display in cm
     wire [6:0] d0;
     wire [6:0] d1;
     wire [6:0] d2;
