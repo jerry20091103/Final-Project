@@ -1,4 +1,6 @@
-// customize clock divider.
+// NOTICE:
+// You may search "NOTICE" for detailed/important information in this code.
+
 module clock_divider #(parameter n = 17) (clk, clk_div);
     input clk;
     output clk_div;
