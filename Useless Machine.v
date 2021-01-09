@@ -170,50 +170,42 @@ bluetooth_control ble_ctrl_m(
 );
 
 //__External Control__//
-//__Bluetooth Control__//
-always@(*)begin
-    
+//__Toggle Control__//
+always@(posedge clk or posedge rst)begin
+    if(rst) begin
+        sw0_final = sw0;
+    end else begin
+        if(state == NS) begin
+            if(!ble_err && command[0]) begin
+                sw0_final = ~sw0_final;
+            end
+        end
+    end
 end
 
 //__Servo Control__//
 always@(*)begin
-    if((ble_err) || (state == UC)) begin
+    if(sw0 == sw0_final) begin
         servo_enable = 0;
         servo_sel = sw0;
         servo_amount = 0;
     end else begin
         servo_enable = 1;
+        servo_sel = ~sw0;
         if(state == NS) begin
-            if(sync_with_sw0[1]) begin
-                // do something.
-                // do something.
-            end else begin
-                servo_sel = ~sw0;
-                servo_amount = 31;
-            end
-        end begin
+            servo_amount = 31;
+        end else if(state == UB) begin
             if(wanted_ub == 3'b000) begin
-                if(random == 0) begin
-                    // Half cycle
                 
-                
-                end else if(random == 1) begin
-                    // One cycle
-
-                end else begin
-                    // Dodge
-                    servo_sel = sw0;
-                    servo_amount = 0;
-                end
             end else if(wanted_ub == 3'b001) begin
                 
             end else if(wanted_ub == 3'b010) begin
                 
-            end else if(wanted_ub == 3'b100) begin
-                
-            end else begin
+            end else if(wanted_ub == 3'b110) begin
                 
             end
+        end else begin
+            servo_amount = 0;
         end
     end
 end
