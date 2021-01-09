@@ -39,7 +39,8 @@ module bluetooth_control(
     reg backward_next;
     reg left_next;
     reg right_next;
-    reg switch_next;
+    reg switch_0;
+    reg switch_1;
     reg data_valid;
 
     // check if valid
@@ -51,6 +52,28 @@ module bluetooth_control(
             data_valid = 0;
     end
 
+    // convert switch to one pulse
+    always @(*) 
+    begin
+        if(switch_0 ^ switch_1)
+            switch <= 1;
+        else
+            switch <= 0;
+    end
+    always @(posedge clk, posedge rst) 
+    begin
+        if(rst)
+        begin
+            switch_0 <= 0;
+            switch_1 <= 1;
+        end
+        else
+        begin
+            switch_1 <= switch_0;
+            switch_0 <= rx_data[0];
+        end
+    end
+
     always @(posedge clk, posedge rst)
     begin
         if(rst)
@@ -59,7 +82,6 @@ module bluetooth_control(
             backward = 0;
             left = 0;
             right = 0;
-            switch = 0;
         end
         else
         begin
@@ -67,14 +89,12 @@ module bluetooth_control(
             backward = backward_next;
             left = left_next;
             right = right_next;
-            switch = switch_next;
         end
     end
     always @(*) 
     begin
         if(data_valid)
         begin
-            switch_next = rx_data[0];
             forward_next = rx_data[1];
             backward_next = rx_data[2];
             left_next = rx_data[3];
@@ -82,7 +102,6 @@ module bluetooth_control(
         end
         else
         begin
-            switch_next = switch;
             forward_next = forward;
             backward_next = backward;
             left_next = left;
