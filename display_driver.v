@@ -1,5 +1,6 @@
 // A led 7_segment display control module
 // clk should be equal to refresh rate
+// clk: 100 MHz / 2**17
 module led_display(
     input clk,
     input [6:0] digit_0,
