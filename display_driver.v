@@ -71,6 +71,8 @@ module int_to_7_bit(
             8: digit_out = 7'b0000000;
             9: digit_out = 7'b0010000;
             10: digit_out = 7'b0111111; // "----"
+            11: digit_out = 7'b0000110; // E
+            12: digit_out = 7'b1111010; // r
             default: digit_out = 7'b1111111;
         endcase
     end
