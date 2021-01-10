@@ -125,8 +125,8 @@ int_to_7_bit d3_c(
 // __Basic Control__ //
 always@(posedge clk_22 or posedge rst) begin
     if(rst) begin
-        LED[0] = 1;
-        LED[15:1] = 15'd0;
+        LED[15] = 1;
+        LED[14:0] = 15'd0;
     end else begin
         LED = LED_next;
     end
@@ -142,9 +142,8 @@ always@(*) begin
        end
    end else if(state == UB) begin
        // show wanted ub
-       LED_next[0] = 0;
-       LED_next[3:1] = wanted_ub;
-       LED_next[15:4] = 12'd0;
+       LED_next[2:0] = wanted_ub;
+       LED_next[15:3] = 13'd0;
    end else begin
        if(command[3]) begin
            // left
