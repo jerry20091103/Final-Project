@@ -496,7 +496,7 @@ always@(*)begin
             // Do nothing in NS and UC mode.
             random_next = clk_17 * 2'd2 + clk;
             servo_enable = 0;
-            servo_sel = sw0;
+            servo_sel = ~sw0;
             servo_amount = 0;
         end
     end else begin
