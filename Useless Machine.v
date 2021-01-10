@@ -46,8 +46,8 @@ module useless(
 parameter clk_basic = 17;
 parameter clk_led = 22;
 parameter NS = 2'b00;  // Normal Switch.
-parameter UB = 2'b10;  // Useless Box.
-parameter UC = 2'b11;  // Useful Car.
+parameter UB = 2'b01;  // Useless Box.
+parameter UC = 2'b10;  // Useful Car.
 
 // NOTICE:
 // wanted_ub = 3'b000 -> random mode 
@@ -82,7 +82,7 @@ clock_divider #(.n(clk_basic)) clk_div_17 (
     .clk_div(clk_17)
 );
 
-clock_divider #(.n(clk_led)) clk_div_23 (
+clock_divider #(.n(clk_led)) clk_div_22 (
     .clk(clk_100), 
     .clk_div(clk_22)
 );
@@ -142,11 +142,11 @@ end
 
 always@(*) begin
    if(state == NS) begin
-       // led will flash if sw0 is on
+       // led will shine if sw0 is on
        if(sw0 && clk_22) begin
-           LED_next = 16'b1111_1111_1111_1111;
+           LED_next[15:0] = 16'b1111_1111_1111_1111;
        end else begin
-           LED_next = 16'b0000_0000_0000_0000;
+           LED_next[15:0] = 16'b0000_0000_0000_0000;
        end
    end else if(state == UB) begin
        // show wanted ub
@@ -169,9 +169,7 @@ always@(*) begin
            end
        end else begin
            // forward and backward
-           LED_next[6:0] = 7'd0;
-           LED_next[7] = 1;
-           LED_next[15:8] = 8'd0;
+           LED_next[15:0] = LED[15:0];
        end
    end
 end
@@ -380,7 +378,12 @@ end
 `define good_dis 20 
 `define delta 4      
 always@(*)begin
-    if(sw0 == sw0_final) begin
+    if(rst) begin
+        random_next = clk_17 * 2'd2 + clk;
+        servo_enable = 0;
+        servo_sel = ~sw0;
+        servo_amount = 0;
+    end else if(sw0 == sw0_final) begin
         if(state == UB) begin
             servo_enable = 1;
             if(wanted_ub == 3'b000) begin
