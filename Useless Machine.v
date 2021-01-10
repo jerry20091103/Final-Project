@@ -572,13 +572,13 @@ always@(*)begin
                 motor_l_dir = 0;
                 motor_r_dir = 0;
             end else if(distance_0 > distance_1 + `delta) begin
-                // approximately closer to right (not symmetric)
+                // approximately closer to right
                 motor_l_enable = 1;
                 motor_r_enable = 1;
                 motor_l_dir = 0;
                 motor_r_dir = 0;
             end else begin
-                // approximately closer to left (not symmetric)
+                // approximately closer to left
                 motor_l_enable = 1;
                 motor_r_enable = 1;
                 motor_l_dir = 1;
