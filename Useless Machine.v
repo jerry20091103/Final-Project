@@ -1,5 +1,7 @@
 // NOTICE:
 // You may search "NOTICE" for detailed/important information in this code.
+// WARNING:
+// You may search "WARNING" for the problems (now solved) in old code.
 
 module clock_divider #(parameter n = 17) (clk, clk_div);
     input clk;
@@ -177,7 +179,7 @@ always@(*) begin
             digit_2 = 12;
             digit_3 = 11;
         end else begin
-            // 15: "----"
+            // 15: display nothing
             digit_1 = 15;
             digit_2 = 15;
             digit_3 = 15;
@@ -337,7 +339,14 @@ always@(posedge clk or posedge rst)begin
 end
 
 //__Random Control__//
+always@(posedge clk) begin
+    random = random_next;
+end
 // NOTICE:
+// The problems of random are solved, by only change random when user isn't nearby.
+
+/* Old random generator
+// WARNING:
 // 1. This random does not use LFSR, but take clk as result.
 // 2. Random stays the same when state = UB. This is because UB state needs to check this
 //    signal to make servo work correctly. If random has changed during the process, it
@@ -345,10 +354,6 @@ end
 // 3. random = 0 -> advance mode
 //    random = 1 -> classic mode
 //    random = 2, 3 -> dodge mode
-always@(posedge clk) begin
-    random = random_next;
-end
-
 always@(*) begin
     if(state == UB) begin
         random_next = random;
@@ -356,7 +361,7 @@ always@(*) begin
         random_next = clk_17 * 2'd2 + clk;
     end
 end
-
+*/
 //__Servo Control__//
 // NOTICE:
 // 1. good_dis is the distance when user isn't near the box.
@@ -374,6 +379,7 @@ always@(*)begin
             if(wanted_ub == 3'b000) begin
                 if(random) begin
                     // no effect.
+                    random_next = clk_17 * 2'd2 + clk;
                     servo_sel = sw0;
                     servo_amount = 0;
                 end else begin
@@ -383,14 +389,18 @@ always@(*)begin
                     // Decide servo_amount according to this "accurate distance".
                     servo_sel = ~sw0;
                     if(ir_sensor_deb) begin
+                        random_next = random;
                         servo_amount = 31;
                     end else begin
                         if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
+                            random_next = clk_17 * 2'd2 + clk;
                             servo_amount = 0;
                         end else if(distance_0 > distance_1 + `delta) begin
+                            random_next = random;
                             servo_amount = ((distance_1 + `delta) * 3 < 25) ?
                                                 (distance_1 + `delta) * 3 : 31; 
                         end else begin
+                            random_next = random;
                             servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                         end
                     end
@@ -421,23 +431,29 @@ always@(*)begin
                     */
                 end
             end else if(wanted_ub == 3'b001) begin
+                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end else if(wanted_ub == 3'b010) begin
+                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end else if(wanted_ub == 3'b100) begin
                 // "closer effect"
                 servo_sel = ~sw0;
                 if(ir_sensor_deb) begin
+                    random_next = random;
                     servo_amount = 31;
                 end else begin
                     if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
+                        random_next = clk_17 * 2'd2 + clk;
                         servo_amount = 0;
                     end else if(distance_0 > distance_1 + `delta) begin
+                        random_next = random;
                         servo_amount = ((distance_1 + `delta) * 3 < 25) ?
                                             (distance_1 + `delta) * 3 : 31; 
                     end else begin
+                        random_next = random;
                         servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                     end
                 end
@@ -462,17 +478,20 @@ always@(*)begin
                 */
             end else begin
                 // user wants two kinds of ub and cause error.
+                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end
         end else begin
             // Do nothing in NS and UC mode.
+            random_next = clk_17 * 2'd2 + clk;
             servo_enable = 0;
             servo_sel = sw0;
             servo_amount = 0;
         end
     end else begin
         servo_enable = 1;
+        random_next = random;
         if(state == NS) begin
             servo_sel = ~sw0;
             servo_amount = 31;
@@ -482,7 +501,7 @@ always@(*)begin
                     // Use servo.
                     servo_sel = ~sw0;
                     servo_amount = 31;
-                else begin
+                end else begin
                     // Don't use servo.
                     servo_sel = sw0;
                     servo_amount = 0;
