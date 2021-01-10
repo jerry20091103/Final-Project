@@ -25,10 +25,10 @@ module useless(
   input clk,
   input rst,
   input mode_sw,           // switch mode between NS, UB, UC
-  input[2:0] wanted_ub,      // the mode user wants when in UB mode 
-  output DIGIT[3:0],
-  output DISPLAY[6:0],
-  output LED[15:0],
+  input [2:0] wanted_ub,      // the mode user wants when in UB mode 
+  output [3:0] DIGIT,
+  output [6:0] DISPLAY,
+  output [15:0] LED,
   /* External Signal */
   input sw0,               // the switch
   input [3:0] ir_sensor,   // 4 IR sensors
