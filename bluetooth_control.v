@@ -1,5 +1,5 @@
 // A bluetooth remote control module
-// clk = 100Mhz
+// clk = 50Mhz
 module bluetooth_control(
     input clk,
     input rst, 

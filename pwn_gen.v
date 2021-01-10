@@ -6,7 +6,7 @@ module PWM_gen (
     input [9:0] duty,
     output reg PWM
 );
-    wire [31:0] count_max = 100_000_000 / freq;
+    wire [31:0] count_max = 50_000_000 / freq;
     wire [31:0] count_duty = count_max * duty / 1024;
     reg [31:0] count;
         

@@ -22,7 +22,7 @@ endmodule
 
 module useless(
   /* Basic Signal */
-  input clk,
+  input clk_100,
   input rst,                // btnU
   input mode_sw,           // switch mode between NS, UB, UC btnC
   input [2:0] wanted_ub,      // the mode user wants when in UB mode sw 0 1 2 
@@ -58,7 +58,7 @@ parameter UC = 2'b11;  // Useful Car.
 // wanted_ub = none of above -> cause error
 
 //__Basic Signal__//
-wire clk_17, clk_22;
+wire clk_17, clk_22, clk;
 wire mode_db, mode_p;       // db for after debounced, p for after one-pulsed.
 reg[1:0] state, state_next;
 reg[15:0] LED_next;
@@ -78,13 +78,18 @@ wire ble_err;
 
 // __Basic Device__ //
 clock_divider #(.n(clk_basic)) clk_div_17 (
-    .clk(clk), 
+    .clk(clk_100), 
     .clk_div(clk_17)
 );
 
 clock_divider #(.n(clk_led)) clk_div_23 (
-    .clk(clk), 
+    .clk(clk_100), 
     .clk_div(clk_22)
+);
+
+clock_divider #(.n(1)) clk_div_50 (
+    .clk(clk_100), 
+    .clk_div(clk)
 );
 
 debounce mode_sw_db (
@@ -256,14 +261,14 @@ wire [3:0] ir_sensor_deb;
 //__External Device__//
 //__Sonic Sensor__//
 sonic_top sonic_0(
-    .clk(clk),
+    .clk(clk_100),
     .rst(rst),
     .Echo(sonic_echo[0]),
     .Trig(sonic_trig[0]),
     .distance(distance_0)
 );
 sonic_top sonic_1(
-    .clk(clk),
+    .clk(clk_100),
     .rst(rst),
     .Echo(sonic_echo[1]),
     .Trig(sonic_trig[1]),

@@ -3,7 +3,7 @@
  * a rx/tx {BAUD_RATE} pair with rx oversamples by 16x.
  */
 module BaudRateGenerator  #(
-    parameter CLOCK_RATE = 100000000, // board internal clock (def == 100MHz)
+    parameter CLOCK_RATE = 50000000, // board internal clock (def == 100MHz)
     parameter BAUD_RATE = 9600
 )(
     input wire clk, // board clock
