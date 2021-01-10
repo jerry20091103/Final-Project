@@ -23,9 +23,9 @@ endmodule
 module useless(
   /* Basic Signal */
   input clk,
-  input rst,
-  input mode_sw,           // switch mode between NS, UB, UC
-  input [2:0] wanted_ub,      // the mode user wants when in UB mode 
+  input rst,                // btnU
+  input mode_sw,           // switch mode between NS, UB, UC btnC
+  input [2:0] wanted_ub,      // the mode user wants when in UB mode sw 0 1 2 
   output [3:0] DIGIT,
   output [6:0] DISPLAY,
   output reg [15:0] LED,
