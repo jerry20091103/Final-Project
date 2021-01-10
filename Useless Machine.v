@@ -28,13 +28,13 @@ module useless(
   input [2:0] wanted_ub,      // the mode user wants when in UB mode 
   output [3:0] DIGIT,
   output [6:0] DISPLAY,
-  output [15:0] LED,
+  output reg [15:0] LED,
   /* External Signal */
   input sw0,               // the switch
   input [3:0] ir_sensor,   // 4 IR sensors
   input [1:0] sonic_echo,  // 2 sonic distance sensors
   output [1:0] sonic_trig,
-  output relay,            // relay
+  output reg relay,            // relay
   output [1:0] motor_cw,   // 2 motors
   output [1:0] motor_ccw,
   output PWM_0,            // 2 servo to flip the switch
@@ -72,6 +72,9 @@ reg [3:0] digit_0;
 reg [3:0] digit_1; 
 reg [3:0] digit_2; 
 reg [3:0] digit_3; 
+
+wire [4:0] command;
+wire ble_err;
 
 // __Basic Device__ //
 clock_divider #(.n(clk_basic)) clk_div_17 (
@@ -247,8 +250,8 @@ wire [19:0] distance_1;
 wire [3:0] ir_sensor_deb;
 
 //__Bluetooth__//
-wire ble_err;
-wire [4:0] command;
+// declaration of wire ble_err; is moved up
+// declaration of wire [4:0] command; is moved up
 
 //__External Device__//
 //__Sonic Sensor__//
