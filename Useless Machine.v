@@ -304,7 +304,7 @@ end
 
 always@(*) begin
     if((state_random == DODGE) && (state_sw0 == MOVE)) begin
-        dodge_counter_next = dodge_counter_next + 1'd1;
+        dodge_counter_next = dodge_counter + 1'd1;
     end else begin
         dodge_counter_next = 8'd0;
     end
@@ -535,7 +535,7 @@ always@(*)begin
             end
         end else if(state == UB) begin
             if(state_random == CLASSIC) begin
-                if((state_sw0 == MOVE) && (~ir_sensor_deb)) begin
+                if((state_sw0 == MOVE) && (!ir_sensor_deb)) begin
                     servo_enable = 1;
                     servo_sel = ~sw0;
                     servo_amount = 31;
@@ -562,7 +562,7 @@ always@(*)begin
                         servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                     end
                 end else begin
-                    if(~ir_sensor_deb) begin
+                    if(!ir_sensor_deb) begin
                         servo_amount = 31;
                     end else begin
                         servo_amount = 0;

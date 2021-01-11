@@ -75,7 +75,7 @@ module bluetooth_control(
     // check if valid
     always @(*) 
     begin
-        if(ble_valid && !ble_err && rx_data[7] == 1 && rx_data[6] == 1)
+        if(ble_valid && !ble_err && rx_data[7] == 1 && rx_data[6] == 0)
             data_valid = 1;
         else
             data_valid = 0;
@@ -94,7 +94,7 @@ module bluetooth_control(
         if(rst)
         begin
             switch_0 <= 0;
-            switch_1 <= 1;
+            switch_1 <= 0;
         end
         else
         begin
@@ -116,7 +116,7 @@ module bluetooth_control(
         if(rst)
         begin
             mode_0 <= 0;
-            mode_1 <= 1;
+            mode_1 <= 0;
         end
         else
         begin
