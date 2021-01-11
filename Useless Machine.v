@@ -77,7 +77,7 @@ reg [3:0] digit_1;
 reg [3:0] digit_2; 
 reg [3:0] digit_3; 
 
-wire [4:0] command;
+wire [5:0] command;
 wire ble_err;
 
 // __Basic Device__ //
@@ -225,7 +225,7 @@ end
 always@(posedge clk or posedge rst) begin
     if(rst) begin
         state = NS;
-    end else if(mode_p) begin
+    end else if((mode_p) || (command[5])) begin
         state = state_next;
     end
 end
@@ -320,11 +320,13 @@ bluetooth_control ble_ctrl_m(
     .ble_rx(ble_rx),
     .ble_tx(ble_tx),
     .ble_err(ble_err),
+    .cur_state(state),
     .switch(command[0]),
     .forward(command[1]),
     .backward(command[2]),
     .left(command[3]),
-    .right(command[4])
+    .right(command[4]),
+    .mode(command[5])
 );
 
 //__IR Sensor__//
