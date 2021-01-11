@@ -39,7 +39,8 @@ module useless(
   output [1:0] motor_ccw,
   output PWM_0,            // 2 servo to flip the switch
   output PWM_1,
-  input ble_rx             // bluetooth chip
+  input ble_rx,            // bluetooth chip
+  input ble_tx
 );
 
 //__Basic Parameter__//
@@ -308,6 +309,7 @@ bluetooth_control ble_ctrl_m(
     .clk(clk),
     .rst(rst),
     .ble_rx(ble_rx),
+    .ble_tx(ble_tx),
     .ble_err(ble_err),
     .switch(command[0]),
     .forward(command[1]),
