@@ -62,6 +62,9 @@ wire clk_17, clk_22, clk;
 wire mode_db, mode_p;       // db for after debounced, p for after one-pulsed.
 reg[1:0] state, state_next;
 reg[15:0] LED_next;
+reg[1:0] random, random_next;
+wire[1:0] random_lfsr;
+// reg servo_sel, servo_enable;
 
 wire [6:0] d0;
 wire [6:0] d1;
@@ -141,43 +144,45 @@ always@(posedge clk_22 or posedge rst) begin
 end
 
 always@(*) begin
-    LED_next[15] = servo_enable;
-    LED_next[14] = servo_sel;
-    LED_next[13] = 0;
-end
-
-always@(*) begin
    if(state == NS) begin
        // led will shine if sw0 is on
        if(sw0) begin
-           LED_next[12:0] = 13'b1111_1111_1111_1111;
+           LED_next[15:0] = 16'b1111_1111_1111_1111;
        end else begin
-           LED_next[12:0] = 13'b0000_0000_0000_0000;
+           LED_next[15:0] = 16'b0000_0000_0000_0000;
        end
    end else if(state == UB) begin
        // show wanted ub
        if(wanted_ub == 3'b000) begin
-            LED_next[2:0] = wanted_ub;
-            LED_next[12:3] = 10'd0;
+           if(random == 0) begin
+               LED_next[2:0] = 3'b100;
+           end else if(random == 1) begin
+               LED_next[2:0] = 3'b001;
+           end else begin
+               LED_next[2:0] = 3'b010;
+           end
+       end else begin
+           LED_next[2:0] = wanted_ub;
        end
+       LED_next[15:3] = 13'd0;
    end else begin
        if(command[3]) begin
            // left
            if(LED == 16'b0000_0000_0000_0001) begin
-               LED_next[12:0] = 13'b0_0000_0000_0000;
+               LED_next[15:0] = 16'b1000_0000_0000_0000;
            end else begin
-               LED_next = LED >> 1'b1;
+               LED_next[15:0] = LED[15:0] >> 1'b1;
            end
        end else if(command[4]) begin
            // right
            if(LED == 16'b1000_0000_0000_0000) begin
-               LED_next[12:0] = 13'b0_0000_0000_0001;
+               LED_next[15:0] = 16'b0000_0000_0000_0001;
            end else begin
-               LED_next = LED << 1'b1;
+               LED_next[15:0] = LED[15:0] << 1'b1;
            end
        end else begin
            // forward and backward
-           LED_next[12:8] = 5'd0;
+           LED_next[15:8] = 8'd0;
            LED_next[7] = 1'b1;
            LED_next[6:0] = 7'd0;
        end
@@ -236,9 +241,6 @@ end
 
 //--------------------------------//
 //__External Signal__//
-//__Random__//
-reg[1:0] random, random_next;
-
 //__Servo__//
 reg servo_enable;
 reg servo_sel;
@@ -266,6 +268,13 @@ wire [3:0] ir_sensor_deb;
 // declaration of wire [4:0] command; is moved up
 
 //__External Device__//
+//__Random (LFSR)__//
+lfsr_random lfsr(
+    .clk(clk),
+    .rst(rst),
+    .random(random_lfsr)
+);
+
 //__Sonic Sensor__//
 sonic_top sonic_0(
     .clk(clk_100),
@@ -297,8 +306,8 @@ servo_control servo_ctrl_0(
 motor_control motor_ctrl_0(
     .l_enable(motor_l_enable),
     .r_enable(motor_r_enable),
-    .l_dir(motor_l_dir),
-    .r_dir(motor_r_dir),
+    .l_dir(~motor_l_dir),
+    .r_dir(~motor_r_dir),
     .motor_cw(motor_cw),
     .motor_ccw(motor_ccw)
 );
@@ -343,15 +352,15 @@ debounce ir_3_deb(
 //__Toggle Control__//
 always@(posedge clk or posedge rst)begin
     if(rst) begin
-        sw0_final = sw0;
+        sw0_final = 0;
     end else begin
         sw0_final = sw0_final_next;
     end
 end
 
 always@(*) begin
-    if(state == NS) begin
-        if(!ble_err && command[0]) begin
+    if((state == NS) || (state == UC)) begin
+        if(command[0]) begin
             sw0_final_next = ~sw0_final;
         end else begin
             sw0_final_next = sw0_final;
@@ -362,9 +371,123 @@ always@(*) begin
 end
 
 //__Random Control__//
-always@(posedge clk) begin
-    random = random_next;
+//__Random State Machine__//
+// For good_dis and delta, see "servo control" below.
+// Dodge time = Dodge seconds / 0.04, where 0.04 = 2**22 / 100MHz
+`define good_dis 20 
+`define delta 4      
+`define dodge_time 75
+
+parameter RANDOM = 2'b00;
+parameter CLASSIC = 2'b01;
+parameter DODGE = 2'b10;
+parameter ADVANCE = 2'b11;
+
+parameter INIT = 1'b0;
+parameter MOVE = 1'b1;
+
+reg[1:0] state_random, state_random_next;
+reg state_sw0, state_sw0_next;
+reg[7:0] dodge_counter, dodge_counter_next;
+
+always@(posedge clk or posedge rst) begin
+    if(rst) begin
+        state_random = RANDOM;
+    end else begin
+        state_random = state_random_next;
+    end
 end
+
+always@(*) begin
+    if(state != UB) begin
+        state_random_next = RANDOM;
+    end else if(wanted_ub == 3'b000) begin
+        if(state_random == RANDOM) begin
+            if(random_lfsr == 0) begin
+                state_random_next = ADVANCE;
+            end else if(random_lfsr == 1) begin
+                state_random_next = CLASSIC;
+            end else if(random_lfsr == 2) begin
+                state_random_next = DODGE;
+            end else begin
+                state_random_next = RANDOM;
+            end
+        end else if(state_random == CLASSIC) begin
+            if ((state_sw0 == MOVE) && (sw0 == sw0_final)) begin
+                state_random_next = RANDOM;
+            end else begin
+                state_random_next = CLASSIC;
+            end
+        end else if(state_random == DODGE) begin
+            if(dodge_counter == `dodge_time) begin
+                state_random_next = RANDOM;
+            end else begin
+                state_random_next = DODGE;
+            end
+        end else begin
+            if ((state_sw0 == MOVE) && (sw0 == sw0_final)) begin
+                state_random_next = RANDOM;
+            end else begin
+                state_random_next = ADVANCE;
+            end
+        end
+    end else if(wanted_ub == 3'b001) begin
+        state_random_next = CLASSIC;
+    end else if(wanted_ub == 3'b010) begin
+        state_random_next = DODGE;
+    end else if(wanted_ub == 3'b100) begin
+        state_random_next = ADVANCE;
+    end else begin
+        state_random_next = RANDOM;
+    end
+end
+
+//__Sw0 State Machine__//
+always@(posedge clk or posedge rst) begin
+    if(rst) begin
+        state_sw0 = INIT;
+    end else begin
+        state_sw0 = state_sw0_next;
+    end
+end
+
+always@(*) begin
+    if(state_random == RANDOM) begin
+        state_sw0_next = INIT;
+    end else if(state_random == CLASSIC) begin
+        state_sw0_next = (sw0 == sw0_final) ? INIT : MOVE;
+    end else if(state_random == DODGE) begin
+        if(state_sw0 == INIT) begin
+            if((distance_0 < `good_dis) || (distance_1 + `delta < `good_dis)) begin
+                state_sw0_next = MOVE;
+            end else begin
+                state_sw0_next = INIT;
+            end
+        end else begin
+            state_sw0_next = (dodge_counter == `dodge_time) ? INIT : MOVE;
+        end
+    end else begin
+        state_sw0_next = (sw0 == sw0_final) ? INIT : MOVE;
+    end
+end
+
+//__Dodge Counter__//
+always@(posedge clk_22 or posedge rst) begin
+    if(rst) begin
+        dodge_counter = 8'd0;
+    end else begin
+        dodge_counter = dodge_counter_next;
+    end
+end
+
+always@(*) begin
+    if((state_random == DODGE) && (state_sw0 == MOVE)) begin
+        dodge_counter_next = dodge_counter_next + 1'd1;
+    end else begin
+        dodge_counter_next = 8'd0;
+    end
+end
+
 // NOTICE:
 // The problems of random are solved, by only change random when user isn't nearby.
 
@@ -381,7 +504,7 @@ always@(*) begin
     if(state == UB) begin
         random_next = random;
     end else begin
-        random_next = clk_17 * 2'd2 + clk;
+        random_next = random_output_from_generator;
     end
 end
 */
@@ -393,11 +516,8 @@ end
 // 2. delta = left - right. (left is longer)
 //    This is because our box is not symmetric. If it is symmetric, it should be 0.
 // 3. For more detailed information, check "closer effect" section below.
-`define good_dis 20 
-`define delta 4      
 always@(*)begin
     if(rst) begin
-        random_next = clk_17 * 2'd2 + clk;
         servo_enable = 0;
         servo_sel = ~sw0;
         servo_amount = 0;
@@ -407,7 +527,6 @@ always@(*)begin
             if(wanted_ub == 3'b000) begin
                 if(random) begin
                     // no effect.
-                    random_next = clk_17 * 2'd2 + clk;
                     servo_sel = sw0;
                     servo_amount = 0;
                 end else begin
@@ -417,18 +536,14 @@ always@(*)begin
                     // Decide servo_amount according to this "accurate distance".
                     servo_sel = ~sw0;
                     if(ir_sensor_deb) begin
-                        random_next = random;
                         servo_amount = 31;
                     end else begin
                         if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
-                            random_next = clk_17 * 2'd2 + clk;
                             servo_amount = 0;
                         end else if(distance_0 > distance_1 + `delta) begin
-                            random_next = random;
                             servo_amount = ((distance_1 + `delta) * 3 < 25) ?
                                                 (distance_1 + `delta) * 3 : 31; 
                         end else begin
-                            random_next = random;
                             servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                         end
                     end
@@ -459,29 +574,23 @@ always@(*)begin
                     */
                 end
             end else if(wanted_ub == 3'b001) begin
-                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end else if(wanted_ub == 3'b010) begin
-                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end else if(wanted_ub == 3'b100) begin
                 // "closer effect"
                 servo_sel = ~sw0;
                 if(ir_sensor_deb) begin
-                    random_next = random;
                     servo_amount = 31;
                 end else begin
                     if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
-                        random_next = clk_17 * 2'd2 + clk;
                         servo_amount = 0;
                     end else if(distance_0 > distance_1 + `delta) begin
-                        random_next = random;
                         servo_amount = ((distance_1 + `delta) * 3 < 25) ?
                                             (distance_1 + `delta) * 3 : 31; 
                     end else begin
-                        random_next = random;
                         servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                     end
                 end
@@ -506,23 +615,24 @@ always@(*)begin
                 */
             end else begin
                 // user wants two kinds of ub and cause error.
-                random_next = clk_17 * 2'd2 + clk;
                 servo_sel = sw0;
                 servo_amount = 0;
             end
         end else begin
             // Do nothing in NS and UC mode.
-            random_next = clk_17 * 2'd2 + clk;
             servo_enable = 0;
             servo_sel = 0;
             servo_amount = 0;
         end
     end else begin
         servo_enable = 1;
-        random_next = random;
-        if(state == NS) begin
+        if((state == NS) || (state == UC)) begin
             servo_sel = ~sw0;
-            servo_amount = 31;
+            if(ir_sensor_deb) begin
+                servo_amount = 0;
+            end else begin
+                servo_amount = 31;
+            end
         end else if(state == UB) begin
             if(wanted_ub == 3'b000) begin
                 if(random < 2) begin
