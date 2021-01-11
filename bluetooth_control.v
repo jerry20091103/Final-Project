@@ -4,6 +4,8 @@ module bluetooth_control(
     input clk,
     input rst, 
     input ble_rx,        // connect to output of the hc-05 bluetooth chip
+    input [1:0] cur_state, // current state of the box
+    output ble_tx,       // connect to rx of hc05
     output ble_err,      // indicate transmission error for debug purpose
     // user commands, 1 = on, 0 = off
     // they all work independently, ex forward = 1 and backward = 1 at the same time
@@ -11,19 +13,33 @@ module bluetooth_control(
     output reg backward, //          backward
     output reg left,     //          left
     output reg right,    //          right
-    output reg switch    // flip the switch
+    output reg switch,   // flip the switch
+    output reg mode      // switch modes
 );
 
     // clocks
     wire rx_clk;
+    wire tx_clk;
+    wire clk_23;
     BaudRateGenerator brg_0(
         .clk(clk),
-        .rxClk(rx_clk)
+        .rxClk(rx_clk),
+        .txClk(tx_clk)
     );
+    clock_divider #(.n(23)) clk_div_23 (
+        .clk(clk), 
+        .clk_div(clk_23)
+    );
+    onepulse start_op(
+        .clk(clk),
+        .signal(clk_23),
+        .op(start_tx)
+    ); // use this to send every 0.1 sec
 
     // uart interface
     wire [7:0] rx_data;
     wire ble_valid;
+    wire [7:0] tx_data;
 
     Uart8Receiver uart_rx_m(
         .clk(rx_clk),
@@ -34,6 +50,14 @@ module bluetooth_control(
         .err(ble_err)
     );
 
+    Uart8Transmitter uart_tx_m(
+        .clk(tx_clk),
+        .en(1),
+        .start(start_tx),
+        .in(tx_data),
+        .out(ble_tx)
+    );
+
     // regs
     reg forward_next;
     reg backward_next;
@@ -41,7 +65,12 @@ module bluetooth_control(
     reg right_next;
     reg switch_0;
     reg switch_1;
+    reg mode_0;
+    reg mode_1;
     reg data_valid;
+
+    // send current state
+    assign tx_data = {6'b000000, cur_state};
 
     // check if valid
     always @(*) 
@@ -73,6 +102,29 @@ module bluetooth_control(
             switch_0 <= rx_data[0];
         end
     end
+
+    // convert mode to one pulse
+    always @(*) 
+    begin
+        if(mode_0 ^ mode_1)
+            mode <= 1;
+        else
+            mode <= 0;
+    end
+    always @(posedge clk, posedge rst) 
+    begin
+        if(rst)
+        begin
+            mode_0 <= 0;
+            mode_1 <= 1;
+        end
+        else
+        begin
+            mode_1 <= mode_0;
+            mode_0 <= rx_data[5];
+        end
+    end
+    
 
     always @(posedge clk, posedge rst)
     begin
