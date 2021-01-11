@@ -40,15 +40,12 @@ module useless(
   output PWM_0,            // 2 servo to flip the switch
   output PWM_1,
   input ble_rx,            // bluetooth chip
-  input ble_tx
+  output ble_tx
 );
 
 //__Basic Parameter__//
 parameter clk_basic = 17;
 parameter clk_led = 22;
-parameter NS = 2'b00;  // Normal Switch.
-parameter UB = 2'b01;  // Useless Box.
-parameter UC = 2'b10;  // Useful Car.
 
 // NOTICE:
 // wanted_ub = 3'b000 -> random mode 
@@ -61,9 +58,9 @@ parameter UC = 2'b10;  // Useful Car.
 //__Basic Signal__//
 wire clk_17, clk_22, clk;
 wire mode_db, mode_p;       // db for after debounced, p for after one-pulsed.
-reg[1:0] state, state_next;
 reg[15:0] LED_next;
 wire[1:0] random_lfsr;
+reg sw0_final, sw0_final_next;
 // reg[1:0] random, random_next;
 // reg servo_sel, servo_enable;
 
@@ -77,6 +74,29 @@ reg [3:0] digit_1;
 reg [3:0] digit_2; 
 reg [3:0] digit_3; 
 
+//__External Signal__//
+//__Servo__//
+reg servo_enable;
+reg servo_sel;
+reg [4:0] servo_amount;
+
+//__Motor__//
+reg motor_l_enable;
+reg motor_l_dir;
+reg motor_r_enable;
+reg motor_r_dir;
+
+//__Relay__//
+wire relay_enable;
+
+//__Sonic Sensor__//
+wire [19:0] distance_0;
+wire [19:0] distance_1;
+
+//__IR Sensor__//
+wire [3:0] ir_sensor_deb;
+
+//__Bluetooth__//
 wire [5:0] command;
 wire ble_err;
 
@@ -144,84 +164,15 @@ always@(posedge clk_22 or posedge rst) begin
     end
 end
 
-always@(*) begin
-   if(state == NS) begin
-       // led will shine if sw0 is on
-       if(sw0) begin
-           LED_next[15:0] = 16'b1111_1111_1111_1111;
-       end else begin
-           LED_next[15:0] = 16'b0000_0000_0000_0000;
-       end
-   end else if(state == UB) begin
-       // show wanted ub
-       if(wanted_ub == 3'b000) begin
-           if(random == 0) begin
-               LED_next[2:0] = 3'b100;
-           end else if(random == 1) begin
-               LED_next[2:0] = 3'b001;
-           end else begin
-               LED_next[2:0] = 3'b010;
-           end
-       end else begin
-           LED_next[2:0] = wanted_ub;
-       end
-       LED_next[15:3] = 13'd0;
-   end else begin
-       if(command[3]) begin
-           // left
-           if(LED == 16'b0000_0000_0000_0001) begin
-               LED_next[15:0] = 16'b1000_0000_0000_0000;
-           end else begin
-               LED_next[15:0] = LED[15:0] >> 1'b1;
-           end
-       end else if(command[4]) begin
-           // right
-           if(LED == 16'b1000_0000_0000_0000) begin
-               LED_next[15:0] = 16'b0000_0000_0000_0001;
-           end else begin
-               LED_next[15:0] = LED[15:0] << 1'b1;
-           end
-       end else begin
-           // forward and backward
-           LED_next[15:8] = 8'd0;
-           LED_next[7] = 1'b1;
-           LED_next[6:0] = 7'd0;
-       end
-   end
-end
-
-always@(*) begin
-    digit_0 = state;
-    if((state == NS) || (state == UC)) begin
-        if(ble_err) begin
-            // 11: E
-            // 12: r
-            digit_1 = 12;
-            digit_2 = 12;
-            digit_3 = 11;
-        end else begin
-            // 15: display nothing
-            digit_1 = 15;
-            digit_2 = 15;
-            digit_3 = 15;
-        end
-    end else begin
-        if((wanted_ub == 3'b111) || (wanted_ub == 3'b110) 
-            || (wanted_ub == 3'b101) || (wanted_ub == 3'b011)) begin
-                digit_1 = 12;
-                digit_2 = 12;
-                digit_3 = 11;
-        end else begin
-            digit_1 = 15;
-            digit_2 = 15;
-            digit_3 = 15;        
-        end
-    end
-end
-
 //------------------------------//
-// __State Machine__ //
+// __Big State Machine__ //
 // __Mode__ //
+parameter NS = 2'b00;  // Normal Switch.
+parameter UB = 2'b01;  // Useless Box.
+parameter UC = 2'b10;  // Useful Car.
+
+reg[1:0] state, state_next;
+
 always@(posedge clk or posedge rst) begin
     if(rst) begin
         state = NS;
@@ -239,140 +190,7 @@ always@(*)begin
         state_next = NS;
     end
 end
-
 //--------------------------------//
-//__External Signal__//
-//__Servo__//
-reg servo_enable;
-reg servo_sel;
-reg [4:0] servo_amount;
-reg sw0_final, sw0_final_next;
-
-//__Motor__//
-reg motor_l_enable;
-reg motor_l_dir;
-reg motor_r_enable;
-reg motor_r_dir;
-
-//__Relay__//
-wire relay_enable;
-
-//__Sonic Sensor__//
-wire [19:0] distance_0;
-wire [19:0] distance_1;
-
-//__IR Sensor__//
-wire [3:0] ir_sensor_deb;
-
-//__Bluetooth__//
-// declaration of wire ble_err; is moved up
-// declaration of wire [4:0] command; is moved up
-
-//__External Device__//
-//__Random (LFSR)__//
-lfsr_random lfsr(
-    .clk(clk),
-    .rst(rst),
-    .random(random_lfsr)
-);
-
-//__Sonic Sensor__//
-sonic_top sonic_0(
-    .clk(clk_100),
-    .rst(rst),
-    .Echo(sonic_echo[0]),
-    .Trig(sonic_trig[0]),
-    .distance(distance_0)
-);
-sonic_top sonic_1(
-    .clk(clk_100),
-    .rst(rst),
-    .Echo(sonic_echo[1]),
-    .Trig(sonic_trig[1]),
-    .distance(distance_1)
-);
-
-//__Servo__//
-servo_control servo_ctrl_0(
-    .clk(clk),
-    .rst(rst),
-    .enable(servo_enable),
-    .select(servo_sel),
-    .amount(servo_amount),
-    .PWM_0(PWM_0),
-    .PWM_1(PWM_1)
-);
-
-//__Motor__//
-motor_control motor_ctrl_0(
-    .l_enable(motor_l_enable),
-    .r_enable(motor_r_enable),
-    .l_dir(~motor_l_dir),
-    .r_dir(~motor_r_dir),
-    .motor_cw(motor_cw),
-    .motor_ccw(motor_ccw)
-);
-
-//__Bluetooth__//
-bluetooth_control ble_ctrl_m(
-    .clk(clk),
-    .rst(rst),
-    .ble_rx(ble_rx),
-    .ble_tx(ble_tx),
-    .ble_err(ble_err),
-    .cur_state(state),
-    .switch(command[0]),
-    .forward(command[1]),
-    .backward(command[2]),
-    .left(command[3]),
-    .right(command[4]),
-    .mode(command[5])
-);
-
-//__IR Sensor__//
-// ir_sensor = 1 when no object infront, = 0 when detected object
-debounce ir_0_deb(
-    .pb(~ir_sensor[0]),
-    .pb_debounced(ir_sensor_deb[0]),
-    .clk(clk_17)
-);
-debounce ir_1_deb(
-    .pb(~ir_sensor[1]),
-    .pb_debounced(ir_sensor_deb[1]),
-    .clk(clk_17)
-);
-debounce ir_2_deb(
-    .pb(~ir_sensor[2]),
-    .pb_debounced(ir_sensor_deb[2]),
-    .clk(clk_17)
-);
-debounce ir_3_deb(
-    .pb(~ir_sensor[3]),
-    .pb_debounced(ir_sensor_deb[3]),
-    .clk(clk_17)
-);
-
-//__External Control__//
-//__Toggle Control__//
-always@(posedge clk or posedge rst)begin
-    if(rst) begin
-        sw0_final = 0;
-    end else begin
-        sw0_final = sw0_final_next;
-    end
-end
-
-always@(*) begin
-    if((state == NS) || (state == UC)) begin
-        if(command[0]) begin
-            sw0_final_next = ~sw0_final;
-        end else begin
-            sw0_final_next = sw0_final;
-        end
-    end else begin
-        sw0_final_next = sw0_final;
-    end
-end
 
 //__Random Control__//
 //__Random State Machine__//
@@ -489,6 +307,185 @@ always@(*) begin
         dodge_counter_next = dodge_counter_next + 1'd1;
     end else begin
         dodge_counter_next = 8'd0;
+    end
+end
+
+always@(*) begin
+    if(state == NS) begin
+        // led will shine if sw0 is on
+        if(sw0) begin
+            LED_next[15:0] = 16'b1111_1111_1111_1111;
+        end else begin
+            LED_next[15:0] = 16'b0000_0000_0000_0000;
+        end
+    end else if(state == UB) begin
+       // show wanted ub
+        if(state_random == ADVANCE) begin
+            LED_next[2:0] = 3'b100;
+        end else if(state_random == CLASSIC) begin
+            LED_next[2:0] = 3'b001;
+        end else if(state_random == DODGE) begin
+            LED_next[2:0] = 3'b010;
+        end else begin
+            LED_next[2:0] = wanted_ub;
+        end
+       LED_next[15:3] = 13'd0;
+    end else begin
+        if(command[3]) begin
+            // left
+            if(LED == 16'b0000_0000_0000_0001) begin
+                LED_next[15:0] = 16'b1000_0000_0000_0000;
+            end else begin
+                LED_next[15:0] = LED[15:0] >> 1'b1;
+            end
+        end else if(command[4]) begin
+            // right
+            if(LED == 16'b1000_0000_0000_0000) begin
+                LED_next[15:0] = 16'b0000_0000_0000_0001;
+            end else begin
+                LED_next[15:0] = LED[15:0] << 1'b1;
+            end
+        end else begin
+            // forward and backward
+            LED_next[15:8] = 8'd0;
+            LED_next[7] = 1'b1;
+            LED_next[6:0] = 7'd0;
+        end
+    end
+end
+
+always@(*) begin
+    digit_0 = state;
+    if((state == NS) || (state == UC)) begin
+        if(ble_err) begin
+            // 11: E
+            // 12: r
+            digit_1 = 12;
+            digit_2 = 12;
+            digit_3 = 11;
+        end else begin
+            // 15: display nothing
+            digit_1 = 15;
+            digit_2 = 15;
+            digit_3 = 15;
+        end
+    end else begin
+        if((wanted_ub == 3'b111) || (wanted_ub == 3'b110) 
+            || (wanted_ub == 3'b101) || (wanted_ub == 3'b011)) begin
+                digit_1 = 12;
+                digit_2 = 12;
+                digit_3 = 11;
+        end else begin
+            digit_1 = 15;
+            digit_2 = 15;
+            digit_3 = 15;        
+        end
+    end
+end
+
+//__External Device__//
+//__Random (LFSR)__//
+lfsr_random lfsr(
+    .clk(clk),
+    .rst(rst),
+    .random(random_lfsr)
+);
+
+//__Sonic Sensor__//
+sonic_top sonic_0(
+    .clk(clk_100),
+    .rst(rst),
+    .Echo(sonic_echo[0]),
+    .Trig(sonic_trig[0]),
+    .distance(distance_0)
+);
+sonic_top sonic_1(
+    .clk(clk_100),
+    .rst(rst),
+    .Echo(sonic_echo[1]),
+    .Trig(sonic_trig[1]),
+    .distance(distance_1)
+);
+
+//__Servo__//
+servo_control servo_ctrl_0(
+    .clk(clk),
+    .rst(rst),
+    .enable(servo_enable),
+    .select(servo_sel),
+    .amount(servo_amount),
+    .PWM_0(PWM_0),
+    .PWM_1(PWM_1)
+);
+
+//__Motor__//
+motor_control motor_ctrl_0(
+    .l_enable(motor_l_enable),
+    .r_enable(motor_r_enable),
+    .l_dir(~motor_l_dir),
+    .r_dir(~motor_r_dir),
+    .motor_cw(motor_cw),
+    .motor_ccw(motor_ccw)
+);
+
+//__Bluetooth__//
+bluetooth_control ble_ctrl_m(
+    .clk(clk),
+    .rst(rst),
+    .ble_rx(ble_rx),
+    .ble_tx(ble_tx),
+    .ble_err(ble_err),
+    .cur_state(state),
+    .switch(command[0]),
+    .forward(command[1]),
+    .backward(command[2]),
+    .left(command[3]),
+    .right(command[4]),
+    .mode(command[5])
+);
+
+//__IR Sensor__//
+// ir_sensor = 1 when no object infront, = 0 when detected object
+debounce ir_0_deb(
+    .pb(~ir_sensor[0]),
+    .pb_debounced(ir_sensor_deb[0]),
+    .clk(clk_17)
+);
+debounce ir_1_deb(
+    .pb(~ir_sensor[1]),
+    .pb_debounced(ir_sensor_deb[1]),
+    .clk(clk_17)
+);
+debounce ir_2_deb(
+    .pb(~ir_sensor[2]),
+    .pb_debounced(ir_sensor_deb[2]),
+    .clk(clk_17)
+);
+debounce ir_3_deb(
+    .pb(~ir_sensor[3]),
+    .pb_debounced(ir_sensor_deb[3]),
+    .clk(clk_17)
+);
+
+//__External Control__//
+//__Toggle Control__//
+always@(posedge clk or posedge rst)begin
+    if(rst) begin
+        sw0_final = 0;
+    end else begin
+        sw0_final = sw0_final_next;
+    end
+end
+
+always@(*) begin
+    if((state == NS) || (state == UC)) begin
+        if(command[0]) begin
+            sw0_final_next = ~sw0_final;
+        end else begin
+            sw0_final_next = sw0_final;
+        end
+    end else begin
+        sw0_final_next = sw0_final;
     end
 end
 
@@ -751,7 +748,7 @@ always@(*)begin
                 motor_r_enable = 0;
                 motor_l_dir = 0;
                 motor_r_dir = 0;
-            end else if(distance0 > distance1 + `delta) begin
+            end else if(distance_0 > distance_1 + `delta) begin
                 motor_l_enable = 1;
                 motor_r_enable = 1;
                 motor_l_dir = 0;
