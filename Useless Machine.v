@@ -63,8 +63,8 @@ wire clk_17, clk_22, clk;
 wire mode_db, mode_p;       // db for after debounced, p for after one-pulsed.
 reg[1:0] state, state_next;
 reg[15:0] LED_next;
-reg[1:0] random, random_next;
 wire[1:0] random_lfsr;
+// reg[1:0] random, random_next;
 // reg servo_sel, servo_enable;
 
 wire [6:0] d0;
@@ -462,7 +462,7 @@ always@(*) begin
         state_sw0_next = (sw0 == sw0_final) ? INIT : MOVE;
     end else if(state_random == DODGE) begin
         if(state_sw0 == INIT) begin
-            if((distance_0 < `good_dis) || (distance_1 + `delta < `good_dis)) begin
+            if((distance_0 < `good_dis) || (distance_1 < `good_dis)) begin
                 state_sw0_next = MOVE;
             end else begin
                 state_sw0_next = INIT;
@@ -525,7 +525,65 @@ always@(*)begin
         servo_enable = 0;
         servo_sel = ~sw0;
         servo_amount = 0;
-    end else if(sw0 == sw0_final) begin
+    end else begin
+        if(state == NS) begin
+            if(sw0 != sw0_final) begin
+                servo_enable = 1;
+                servo_sel = ~sw0;
+                servo_amount = 31;
+            end else begin
+                servo_enable = 0;
+                servo_sel = ~sw0;
+                servo_amount = 0;
+            end
+        end else if(state == UB) begin
+            if(state_random == CLASSIC) begin
+                if((state_sw0 == MOVE) && (~ir_sensor_deb)) begin
+                    servo_enable = 1;
+                    servo_sel = ~sw0;
+                    servo_amount = 31;
+                end else begin
+                    servo_enable = 0;
+                    servo_sel = ~sw0;
+                    servo_amount = 0;
+                end
+            end else if(state_random == DODGE) begin
+                servo_enable = 0;
+                servo_sel = ~sw0;
+                servo_amount = 0;
+            end else if(state_random == ADVANCE) begin
+                servo_enable = 1;
+                servo_sel = ~sw0;
+                if(state_sw0 == INIT) begin
+                    if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
+                        servo_amount = 0;
+                    end else if(ir_sensor_deb) begin
+                        servo_amount = 31; 
+                    end else if(distance_0 > distance_1 + `delta) begin
+                        servo_amount = ((distance_1 + `delta) * 3 < 25) ? (distance_1 + `delta) * 3 : 31;
+                    end else begin
+                        servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
+                    end
+                end else begin
+                    if(~ir_sensor_deb) begin
+                        servo_amount = 31;
+                    end else begin
+                        servo_amount = 0;
+                    end
+                end
+            end else begin
+                servo_enable = 0;
+                servo_sel = ~sw0;
+                servo_amount = 0;
+            end
+        end else begin
+            servo_enable = 0;
+            servo_sel = ~sw0;
+            servo_amount = 0;
+        end
+    end 
+    /*  Old code 
+    else if(sw0 == sw0_final) begin
         if(state == UB) begin
             servo_enable = 1;
             if(wanted_ub == 3'b000) begin
@@ -557,7 +615,7 @@ always@(*)begin
                     //            but user may come from the other side, so the distance isn't precise.
                     // Problem 2: If user comes from the other side of sw0, servo_amount will be
                     //            more than the normal side.
-                    /*
+                    //
                     if(sw0) begin 
                         if(ir_sensor_deb) begin
                             servo_amount = 31;
@@ -575,7 +633,7 @@ always@(*)begin
                             servo_amount = distance_1 + `delta + 25 - `good_dis;
                         end
                     end
-                    */
+                    //
                 end
             end else if(wanted_ub == 3'b001) begin
                 servo_sel = sw0;
@@ -598,7 +656,7 @@ always@(*)begin
                         servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
                     end
                 end
-                /*  Old Algorithm
+                //  Old Algorithm
                 if(sw0) begin
                     if(ir_sensor_deb) begin
                         servo_amount = 31;
@@ -616,7 +674,6 @@ always@(*)begin
                         servo_amount = distance_1 + (25 - `good_dis);
                     end
                 end
-                */
             end else begin
                 // user wants two kinds of ub and cause error.
                 servo_sel = sw0;
@@ -677,6 +734,7 @@ always@(*)begin
             servo_amount = 0;
         end
     end
+    */
 end
 
 //__Motor Control__//
@@ -687,6 +745,30 @@ always@(*)begin
         motor_l_dir = 0;
         motor_r_dir = 0;
     end else if(state == UB) begin
+        if((state_random == DODGE) && (state_sw0 == MOVE) && (dodge_counter < `dodge_time)) begin
+            if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
+                motor_l_enable = 0;
+                motor_r_enable = 0;
+                motor_l_dir = 0;
+                motor_r_dir = 0;
+            end else if(distance0 > distance1 + `delta) begin
+                motor_l_enable = 1;
+                motor_r_enable = 1;
+                motor_l_dir = 0;
+                motor_r_dir = 0;
+            end else begin
+                motor_l_enable = 1;
+                motor_r_enable = 1;
+                motor_l_dir = 1;
+                motor_r_dir = 1;
+            end
+        end else begin
+            motor_l_enable = 0;
+            motor_r_enable = 0;
+            motor_l_dir = 0;
+            motor_r_dir = 0;
+        end
+        /* Old code
         if(wanted_ub == 3'b000) begin
             if(random < 2) begin
                 motor_l_enable = 0;
@@ -744,6 +826,7 @@ always@(*)begin
             motor_l_dir = 0;
             motor_r_dir = 0;
         end
+        */
     end else begin
         if(!ble_err) begin
             if(command[1]) begin
