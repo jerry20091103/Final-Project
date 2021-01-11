@@ -46,8 +46,8 @@ module useless(
 parameter clk_basic = 17;
 parameter clk_led = 22;
 parameter NS = 2'b00;  // Normal Switch.
-parameter UB = 2'b10;  // Useless Box.
-parameter UC = 2'b11;  // Useful Car.
+parameter UB = 2'b01;  // Useless Box.
+parameter UC = 2'b10;  // Useful Car.
 
 // NOTICE:
 // wanted_ub = 3'b000 -> random mode 
@@ -82,7 +82,7 @@ clock_divider #(.n(clk_basic)) clk_div_17 (
     .clk_div(clk_17)
 );
 
-clock_divider #(.n(clk_led)) clk_div_23 (
+clock_divider #(.n(clk_led)) clk_div_22 (
     .clk(clk_100), 
     .clk_div(clk_22)
 );
@@ -133,45 +133,53 @@ int_to_7_bit d3_c(
 // __Basic Control__ //
 always@(posedge clk_22 or posedge rst) begin
     if(rst) begin
-        LED[15] = 1;
-        LED[14:0] = 15'd0;
+        LED[0] = 1;
+        LED[15:1] = 15'd0;
     end else begin
         LED = LED_next;
     end
 end
 
 always@(*) begin
+    LED_next[15] = servo_enable;
+    LED_next[14] = servo_sel;
+    LED_next[13] = 0;
+end
+
+always@(*) begin
    if(state == NS) begin
-       // led will flash if sw0 is on
-       if(sw0 && clk_22) begin
-           LED_next = 16'b1111_1111_1111_1111;
+       // led will shine if sw0 is on
+       if(sw0) begin
+           LED_next[12:0] = 13'b1111_1111_1111_1111;
        end else begin
-           LED_next = 16'b0000_0000_0000_0000;
+           LED_next[12:0] = 13'b0000_0000_0000_0000;
        end
    end else if(state == UB) begin
        // show wanted ub
-       LED_next[2:0] = wanted_ub;
-       LED_next[15:3] = 13'd0;
+       if(wanted_ub == 3'b000) begin
+            LED_next[2:0] = wanted_ub;
+            LED_next[12:3] = 10'd0;
+       end
    end else begin
        if(command[3]) begin
            // left
            if(LED == 16'b0000_0000_0000_0001) begin
-               LED_next = 16'b1000_0000_0000_0000;
+               LED_next[12:0] = 13'b0_0000_0000_0000;
            end else begin
                LED_next = LED >> 1'b1;
            end
        end else if(command[4]) begin
            // right
            if(LED == 16'b1000_0000_0000_0000) begin
-               LED_next = 16'b0000_0000_0000_0001;
+               LED_next[12:0] = 13'b0_0000_0000_0001;
            end else begin
                LED_next = LED << 1'b1;
            end
        end else begin
            // forward and backward
+           LED_next[12:8] = 5'd0;
+           LED_next[7] = 1'b1;
            LED_next[6:0] = 7'd0;
-           LED_next[7] = 1;
-           LED_next[15:8] = 8'd0;
        end
    end
 end
@@ -235,7 +243,7 @@ reg[1:0] random, random_next;
 reg servo_enable;
 reg servo_sel;
 reg [4:0] servo_amount;
-reg sw0_final;
+reg sw0_final, sw0_final_next;
 
 //__Motor__//
 reg motor_l_enable;
@@ -337,11 +345,19 @@ always@(posedge clk or posedge rst)begin
     if(rst) begin
         sw0_final = sw0;
     end else begin
-        if(state == NS) begin
-            if(!ble_err && command[0]) begin
-                sw0_final = ~sw0_final;
-            end
+        sw0_final = sw0_final_next;
+    end
+end
+
+always@(*) begin
+    if(state == NS) begin
+        if(!ble_err && command[0]) begin
+            sw0_final_next = ~sw0_final;
+        end else begin
+            sw0_final_next = sw0_final;
         end
+    end else begin
+        sw0_final_next = sw0_final;
     end
 end
 
@@ -380,7 +396,12 @@ end
 `define good_dis 20 
 `define delta 4      
 always@(*)begin
-    if(sw0 == sw0_final) begin
+    if(rst) begin
+        random_next = clk_17 * 2'd2 + clk;
+        servo_enable = 0;
+        servo_sel = ~sw0;
+        servo_amount = 0;
+    end else if(sw0 == sw0_final) begin
         if(state == UB) begin
             servo_enable = 1;
             if(wanted_ub == 3'b000) begin
@@ -493,7 +514,7 @@ always@(*)begin
             // Do nothing in NS and UC mode.
             random_next = clk_17 * 2'd2 + clk;
             servo_enable = 0;
-            servo_sel = sw0;
+            servo_sel = 0;
             servo_amount = 0;
         end
     end else begin
@@ -505,9 +526,12 @@ always@(*)begin
         end else if(state == UB) begin
             if(wanted_ub == 3'b000) begin
                 if(random < 2) begin
-                    // Use servo.
                     servo_sel = ~sw0;
-                    servo_amount = 31;
+                    if(ir_sensor_deb) begin
+                        servo_amount = 0;
+                    end else begin
+                        servo_amount = 31;
+                    end
                 end else begin
                     // Don't use servo.
                     servo_sel = sw0;
@@ -515,13 +539,21 @@ always@(*)begin
                 end
             end else if(wanted_ub == 3'b001) begin
                 servo_sel = ~sw0;
-                servo_amount = 31;
+                if(ir_sensor_deb) begin
+                    servo_amount = 0;
+                end else begin
+                    servo_amount = 31;
+                end
             end else if(wanted_ub == 3'b010) begin
                 servo_sel = sw0;
                 servo_amount = 0;
             end else if(wanted_ub == 3'b100) begin
                 servo_sel = ~sw0;
-                servo_amount = 31;
+                if(ir_sensor_deb) begin
+                    servo_amount = 0;
+                end else begin
+                    servo_amount = 31;
+                end
             end else begin
                 servo_sel = sw0;
                 servo_amount = 0;
