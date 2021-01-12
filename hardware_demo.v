@@ -77,7 +77,7 @@ module hardware_demo(
     reg servo_sel;
     reg [4:0] servo_amount;
     wire ble_err;
-    wire [4:0] command;
+    wire [5:0] command;
 
     // connect sonic sensors
     // see sample_code/sonic.v for more details 
