@@ -10,6 +10,7 @@
     pwm_gen.v
     uart8/BaudRateGenerator.v
     uart8/Uart8Receiver.v
+    usrt8/Uart8Transmitter.v
 */
 
 module clock_divider_17(
@@ -44,6 +45,7 @@ module hardware_demo(
     input motor_r_enable, // sw3
     input motor_r_dir,    // sw4
     input relay_enable,    // sw5
+    input [1:0] cur_state, // sw6, 7
     // external devices 
     // do NOT modify theses if you want to use hardware_demo.xdc
     input sw0,              // the switch
@@ -56,6 +58,7 @@ module hardware_demo(
     output PWM_0,           // 2 servo to flip the switch
     output PWM_1,
     input ble_rx,           // bluetooth chip
+    output ble_tx,
     // displays
     output [15:0] led,     // show ir sensor status (0~3)
     output [6:0] DISPLAY,  // digit 0, 1 -> sonic_0 distance (cm)
@@ -122,12 +125,15 @@ module hardware_demo(
         .clk(clk),
         .rst(rst),
         .ble_rx(ble_rx),
+        .ble_tx(ble_tx),
         .ble_err(ble_err),
+        .cur_state(cur_state),
         .switch(command[0]),
         .forward(command[1]),
         .backward(command[2]),
         .left(command[3]),
-        .right(command[4])
+        .right(command[4]),
+        .mode(command[5])
     );
 
     // flip switches
@@ -185,11 +191,12 @@ module hardware_demo(
 
     // show bluetooth control status
     assign led[14] = ble_err;
-    assign led[13] = command[4];
-    assign led[12] = command[3];
-    assign led[11] = command[2];
-    assign led[10] = command[1];
-    assign led[9] = command[0];
+    assign led[13] = command[5];
+    assign led[12] = command[4];
+    assign led[11] = command[3];
+    assign led[10] = command[2];
+    assign led[9] = command[1];
+    assign led[8] = command[0];
 
     // show status of "the switch"
     // 1 and 0 means two possible positions for the switch

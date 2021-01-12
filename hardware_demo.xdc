@@ -212,8 +212,8 @@ set_property IOSTANDARD LVCMOS33 [get_ports {led[15]}]
 # set_property PACKAGE_PIN L3 [get_ports {JXADC[1]}]
 #    set_property IOSTANDARD LVCMOS33 [get_ports {JXADC[1]}]
 ## Sch name = XA3_P
-# set_property PACKAGE_PIN M2 [get_ports {JXADC[2]}]
-#    set_property IOSTANDARD LVCMOS33 [get_ports {JXADC[2]}]
+ set_property PACKAGE_PIN M2 [get_ports {ble_tx}]
+    set_property IOSTANDARD LVCMOS33 [get_ports {ble_tx}]
 ## Sch name = XA4_P
  set_property PACKAGE_PIN N2 [get_ports {ble_rx}]
    set_property IOSTANDARD LVCMOS33 [get_ports {ble_rx}]
