@@ -196,7 +196,7 @@ end
 //__Random State Machine__//
 // For good_dis and delta, see "servo control" below.
 // Dodge time = Dodge seconds / 0.04, where 0.04 = 2**22 / 100MHz
-`define good_dis 20 
+`define good_dis 28
 `define delta 4      
 `define dodge_time 75
 
@@ -576,14 +576,14 @@ always@(*)begin
                 servo_enable = 1;
                 servo_sel = ~sw0;
                 if(state_sw0 == INIT) begin
-                    if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
-                        servo_amount = 0;
-                    end else if(ir_sensor_deb) begin
-                        servo_amount = 31; 
+                    if(ir_sensor_deb) begin
+                        servo_amount = 31;
+                    end else if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
+                        servo_amount = 0; 
                     end else if(distance_0 > distance_1 + `delta) begin
-                        servo_amount = ((distance_1 + `delta) * 3 < 25) ? (distance_1 + `delta) * 3 : 31;
+                        servo_amount = ((distance_1 + `delta) * 4 < 25) ? (distance_1 + `delta) * 4 : 31;
                     end else begin
-                        servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
+                        servo_amount = (distance_0 * 4 < 25) ? distance_0 * 4 : 31; // coeff
                     end
                 end else begin
                     if(!ir_sensor_deb) begin
