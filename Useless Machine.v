@@ -280,7 +280,7 @@ always@(*) begin
         state_sw0_next = (sw0 == sw0_final) ? INIT : MOVE;
     end else if(state_random == DODGE) begin
         if(state_sw0 == INIT) begin
-            if((distance_0 < `good_dis) || (distance_1 < `good_dis)) begin
+            if((distance_0 < `good_dis) || (distance_1 + `delta < `good_dis)) begin
                 state_sw0_next = MOVE;
             end else begin
                 state_sw0_next = INIT;
