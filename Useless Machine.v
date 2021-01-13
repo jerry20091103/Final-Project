@@ -320,12 +320,16 @@ always@(*) begin
         end
     end else if(state == UB) begin
        // show wanted ub
-        if(state_random == ADVANCE) begin
-            LED_next[2:0] = 3'b100;
-        end else if(state_random == CLASSIC) begin
-            LED_next[2:0] = 3'b001;
-        end else if(state_random == DODGE) begin
-            LED_next[2:0] = 3'b010;
+        if(wanted_ub != 3'b000) begin
+            if(state_random == ADVANCE) begin
+                LED_next[2:0] = 3'b100;
+            end else if(state_random == CLASSIC) begin
+                LED_next[2:0] = 3'b001;
+            end else if(state_random == DODGE) begin
+                LED_next[2:0] = 3'b010;
+            end else begin
+                LED_next[2:0] = wanted_ub;
+            end
         end else begin
             LED_next[2:0] = wanted_ub;
         end
@@ -574,9 +578,15 @@ always@(*)begin
                 servo_amount = 0;
             end
         end else begin
-            servo_enable = 0;
-            servo_sel = ~sw0;
-            servo_amount = 0;
+            if(sw0 != sw0_final) begin
+                servo_enable = 1;
+                servo_sel = ~sw0;
+                servo_amount = 31;
+            end else begin
+                servo_enable = 0;
+                servo_sel = ~sw0;
+                servo_amount = 0;
+            end
         end
     end 
     /*  Old code 
