@@ -275,7 +275,23 @@ end
 
 always@(*) begin
     if(state_random == RANDOM) begin
-        state_sw0_next = INIT;
+        if(state == UB) begin
+            state_sw0_next = INIT;
+        end else begin
+            if(state_sw0 == INIT) begin
+                if(command[0]) begin
+                    state_sw0_next = MOVE;
+                end else if(sw0 != sw0_final) begin
+                    state_sw0_next = MOVE;
+                end else begin
+                    state_sw0_next = INIT;
+                end
+            end else if(sw0 != sw0_final) begin
+                state_sw0_next = MOVE;
+            end else begin
+                state_sw0_next = INIT;
+            end
+        end
     end else if(state_random == CLASSIC) begin
         state_sw0_next = (sw0 == sw0_final) ? INIT : MOVE;
     end else if(state_random == DODGE) begin
@@ -482,9 +498,13 @@ always@(posedge clk or posedge rst)begin
 end
 
 always@(*) begin
-    if((state == NS) || (state == UC)) begin
-        if(command[0]) begin
-            sw0_final_next = ~sw0_final;
+    if(state != UB) begin
+        if(state_sw0 == INIT) begin
+            if(command[0]) begin
+                sw0_final_next = ~sw0_final;
+            end else begin
+                sw0_final_next = (state == NS) ? sw0 : sw0_final; 
+            end
         end else begin
             sw0_final_next = sw0_final;
         end
@@ -528,7 +548,7 @@ always@(*)begin
         servo_amount = 0;
     end else begin
         if(state == NS) begin
-            if(sw0 != sw0_final) begin
+            if((state_sw0 == MOVE) && (!ir_sensor_deb)) begin
                 servo_enable = 1;
                 servo_sel = ~sw0;
                 servo_amount = 31;
@@ -578,7 +598,7 @@ always@(*)begin
                 servo_amount = 0;
             end
         end else begin
-            if(sw0 != sw0_final) begin
+            if((state_sw0 == MOVE) && (!ir_sensor_deb)) begin
                 servo_enable = 1;
                 servo_sel = ~sw0;
                 servo_amount = 31;
