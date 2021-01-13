@@ -31,7 +31,7 @@ module bluetooth_control(
         .clk_div(clk_23)
     );
     onepulse start_op(
-        .clk(clk),
+        .clk(tx_clk),
         .signal(clk_23),
         .op(start_tx)
     ); // use this to send every 0.1 sec
@@ -40,6 +40,10 @@ module bluetooth_control(
     wire [7:0] rx_data;
     wire ble_valid;
     wire [7:0] tx_data;
+    wire tx_busy;
+    wire tx_send;
+    assign tx_send = start_tx && (!tx_busy);
+
 
     Uart8Receiver uart_rx_m(
         .clk(rx_clk),
@@ -53,9 +57,10 @@ module bluetooth_control(
     Uart8Transmitter uart_tx_m(
         .clk(tx_clk),
         .en(1),
-        .start(start_tx),
+        .start(tx_send),
         .in(tx_data),
-        .out(ble_tx)
+        .out(ble_tx),
+        .busy(tx_busy)
     );
 
     // regs
@@ -68,14 +73,42 @@ module bluetooth_control(
     reg mode_0;
     reg mode_1;
     reg data_valid;
+    reg switch_data, switch_data_next;
+    reg mode_data, mode_data_next;
 
-    // send current state
+    always @(posedge clk, posedge rst) 
+    begin
+        if(rst)
+        begin
+            switch_data <= 0;
+            mode_data <= 0;
+        end
+        else
+        begin
+            mode_data <= mode_data_next;
+            switch_data <= switch_data_next;
+        end
+    end
+    always @(*) 
+    begin
+       if(data_valid)
+       begin
+            switch_data_next = rx_data[0];
+            mode_data_next = rx_data[5];
+       end
+       else 
+       begin
+            switch_data_next = switch_data;
+            mode_data_next = mode_data;
+       end
+    end
+
     assign tx_data = {6'b000000, cur_state};
 
     // check if valid
     always @(*) 
     begin
-        if(ble_valid && !ble_err && rx_data[7] == 1 && rx_data[6] == 0)
+        if(ble_valid && !ble_err && rx_data[7] == 1 && rx_data[6] == 1)
             data_valid = 1;
         else
             data_valid = 0;
@@ -99,7 +132,7 @@ module bluetooth_control(
         else
         begin
             switch_1 <= switch_0;
-            switch_0 <= rx_data[0];
+            switch_0 <= switch_data;
         end
     end
 
@@ -121,7 +154,7 @@ module bluetooth_control(
         else
         begin
             mode_1 <= mode_0;
-            mode_0 <= rx_data[5];
+            mode_0 <= mode_data;
         end
     end
     
