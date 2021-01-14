@@ -1,7 +1,5 @@
 // NOTICE:
 // You may search "NOTICE" for detailed/important information in this code.
-// WARNING:
-// You may search "WARNING" for the problems (now solved) in old code.
 
 module clock_divider #(parameter n = 17) (clk, clk_div);
     input clk;
@@ -512,27 +510,6 @@ always@(*) begin
         sw0_final_next = sw0_final;
     end
 end
-
-// NOTICE:
-// The problems of random are solved, by only change random when user isn't nearby.
-
-/* Old random generator
-// WARNING:
-// 1. This random does not use LFSR, but take clk as result.
-// 2. Random stays the same when state = UB. This is because UB state needs to check this
-//    signal to make servo work correctly. If random has changed during the process, it
-//    might cause some error. You may modify these if you have a better solution.
-// 3. random = 0 -> advance mode
-//    random = 1 -> classic mode
-//    random = 2, 3 -> dodge mode
-always@(*) begin
-    if(state == UB) begin
-        random_next = random;
-    end else begin
-        random_next = random_output_from_generator;
-    end
-end
-*/
 //__Servo Control__//
 // NOTICE:
 // 1. good_dis is the distance when user isn't near the box.
@@ -609,159 +586,6 @@ always@(*)begin
             end
         end
     end 
-    /*  Old code 
-    else if(sw0 == sw0_final) begin
-        if(state == UB) begin
-            servo_enable = 1;
-            if(wanted_ub == 3'b000) begin
-                if(random) begin
-                    // no effect.
-                    servo_sel = sw0;
-                    servo_amount = 0;
-                end else begin
-                    // "closer effect"
-                    // -> The hand lift higher when user get closer.
-                    // Take min(distance_0, distance_1 + `delta) as accurate distance.
-                    // Decide servo_amount according to this "accurate distance".
-                    servo_sel = ~sw0;
-                    if(ir_sensor_deb) begin
-                        servo_amount = 31;
-                    end else begin
-                        if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
-                            servo_amount = 0;
-                        end else if(distance_0 > distance_1 + `delta) begin
-                            servo_amount = ((distance_1 + `delta) * 3 < 25) ?
-                                                (distance_1 + `delta) * 3 : 31; 
-                        end else begin
-                            servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
-                        end
-                    end
-                    // Old Algorithm
-                    // WARNING: This is not perfect due to the following problem.
-                    // Problem 1: Only use the distance of the sonic sensor on the normal side,
-                    //            but user may come from the other side, so the distance isn't precise.
-                    // Problem 2: If user comes from the other side of sw0, servo_amount will be
-                    //            more than the normal side.
-                    //
-                    if(sw0) begin 
-                        if(ir_sensor_deb) begin
-                            servo_amount = 31;
-                        end else if(distance_0 > `good_dis) begin
-                            servo_amount = 0; 
-                        end else begin
-                            servo_amount = distance_0 + 25 - `good_dis;
-                        end
-                    end else begin
-                        if(ir_sensor_deb) begin
-                            servo_amount = 31;
-                        end else if(distance_1 + `delta > `good_dis) begin
-                            servo_amount = 0; 
-                        end else begin
-                            servo_amount = distance_1 + `delta + 25 - `good_dis;
-                        end
-                    end
-                    //
-                end
-            end else if(wanted_ub == 3'b001) begin
-                servo_sel = sw0;
-                servo_amount = 0;
-            end else if(wanted_ub == 3'b010) begin
-                servo_sel = sw0;
-                servo_amount = 0;
-            end else if(wanted_ub == 3'b100) begin
-                // "closer effect"
-                servo_sel = ~sw0;
-                if(ir_sensor_deb) begin
-                    servo_amount = 31;
-                end else begin
-                    if((distance_0 > `good_dis) && (distance_1 + `delta > `good_dis)) begin
-                        servo_amount = 0;
-                    end else if(distance_0 > distance_1 + `delta) begin
-                        servo_amount = ((distance_1 + `delta) * 3 < 25) ?
-                                            (distance_1 + `delta) * 3 : 31; 
-                    end else begin
-                        servo_amount = (distance_0 * 3 < 25) ? distance_0 * 3 : 31;
-                    end
-                end
-                //  Old Algorithm
-                if(sw0) begin
-                    if(ir_sensor_deb) begin
-                        servo_amount = 31;
-                    end else if(distance_0 > `good_dis) begin
-                        servo_amount = 0; 
-                    end else begin
-                        servo_amount = distance_0 + (25 - `good_dis);
-                    end
-                end else begin
-                    if(ir_sensor_deb) begin
-                        servo_amount = 31;
-                    end else if(distance_1 > `good_dis) begin
-                        servo_amount = 0; 
-                    end else begin
-                        servo_amount = distance_1 + (25 - `good_dis);
-                    end
-                end
-            end else begin
-                // user wants two kinds of ub and cause error.
-                servo_sel = sw0;
-                servo_amount = 0;
-            end
-        end else begin
-            // Do nothing in NS and UC mode.
-            servo_enable = 0;
-            servo_sel = 0;
-            servo_amount = 0;
-        end
-    end else begin
-        servo_enable = 1;
-        if((state == NS) || (state == UC)) begin
-            servo_sel = ~sw0;
-            if(ir_sensor_deb) begin
-                servo_amount = 0;
-            end else begin
-                servo_amount = 31;
-            end
-        end else if(state == UB) begin
-            if(wanted_ub == 3'b000) begin
-                if(random < 2) begin
-                    servo_sel = ~sw0;
-                    if(ir_sensor_deb) begin
-                        servo_amount = 0;
-                    end else begin
-                        servo_amount = 31;
-                    end
-                end else begin
-                    // Don't use servo.
-                    servo_sel = sw0;
-                    servo_amount = 0;
-                end
-            end else if(wanted_ub == 3'b001) begin
-                servo_sel = ~sw0;
-                if(ir_sensor_deb) begin
-                    servo_amount = 0;
-                end else begin
-                    servo_amount = 31;
-                end
-            end else if(wanted_ub == 3'b010) begin
-                servo_sel = sw0;
-                servo_amount = 0;
-            end else if(wanted_ub == 3'b100) begin
-                servo_sel = ~sw0;
-                if(ir_sensor_deb) begin
-                    servo_amount = 0;
-                end else begin
-                    servo_amount = 31;
-                end
-            end else begin
-                servo_sel = sw0;
-                servo_amount = 0;
-            end
-        end else begin
-            servo_sel = sw0;
-            servo_amount = 0;
-        end
-    end
-    */
 end
 
 //__Motor Control__//
@@ -795,65 +619,6 @@ always@(*)begin
             motor_l_dir = 0;
             motor_r_dir = 0;
         end
-        /* Old code
-        if(wanted_ub == 3'b000) begin
-            if(random < 2) begin
-                motor_l_enable = 0;
-                motor_r_enable = 0;
-                motor_l_dir = 0;
-                motor_r_dir = 0;
-            end else begin
-                // NOTICE:
-                // Two possible situation to stop:
-                // 1. Very close to sensor -> this means away from sw0 after cars moved.
-                // 2. Very far from sensor -> this means user isn't near the box.
-                if(((distance_0 < `good_dis / 3 + 1) || (distance_1 + `delta < `good_dis / 3 + 1))
-                    || ((distance_0 > `good_dis / 2) && (distance_1 + `delta > `good_dis / 2))) begin
-                    motor_l_enable = 0;
-                    motor_r_enable = 0;
-                    motor_l_dir = 0;
-                    motor_r_dir = 0;
-                end else if(distance_0 > distance_1 + `delta) begin
-                    // approximately closer to right
-                    motor_l_enable = 1;
-                    motor_r_enable = 1;
-                    motor_l_dir = 0;
-                    motor_r_dir = 0;
-                end else begin
-                    // approximately closer to left
-                    motor_l_enable = 1;
-                    motor_r_enable = 1;
-                    motor_l_dir = 1;
-                    motor_r_dir = 1;
-                end
-            end
-        end else if(wanted_ub == 3'b010) begin
-            if(((distance_0 < `good_dis / 3 + 1) || (distance_1 + `delta < `good_dis / 3 + 1))
-                || ((distance_0 > `good_dis / 2) && (distance_1 + `delta > `good_dis / 2))) begin
-                motor_l_enable = 0;
-                motor_r_enable = 0;
-                motor_l_dir = 0;
-                motor_r_dir = 0;
-            end else if(distance_0 > distance_1 + `delta) begin
-                // approximately closer to right
-                motor_l_enable = 1;
-                motor_r_enable = 1;
-                motor_l_dir = 0;
-                motor_r_dir = 0;
-            end else begin
-                // approximately closer to left
-                motor_l_enable = 1;
-                motor_r_enable = 1;
-                motor_l_dir = 1;
-                motor_r_dir = 1;
-            end
-        end else begin
-            motor_l_enable = 0;
-            motor_r_enable = 0;
-            motor_l_dir = 0;
-            motor_r_dir = 0;
-        end
-        */
     end else begin
         if(!ble_err) begin
             if(command[1]) begin
