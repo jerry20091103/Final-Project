@@ -34,6 +34,6 @@ If you want to look into the code, things below are needed for compiled:
   11. uart8/BaudRateGenerator.v
   12. uart8/Uart8Receiver.v
   13. uart8/Uart8Transmitter.v
-      *uart8 credit: https://github.com/hell03end/verilog-uart
+  <br>*uart8 credit: https://github.com/hell03end/verilog-uart
   
 Others are used for testing functions.
